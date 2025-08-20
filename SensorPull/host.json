@@ -1,12 +1,19 @@
 {
-    "version": "2.0",
-    "logging": {
-        "applicationInsights": {
-            "samplingSettings": {
-                "isEnabled": true,
-                "excludedTypes": "Request"
-            },
-            "enableLiveMetricsFilters": true
-        }
+  "version": "2.0",
+  "logging": {
+    "logLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Worker": "Information",
+      "Host.Results": "Information",
+      "SensorPull.Functions.ThermostatTimer": "Information",
+      "SensorPull.Services.SensorPushClient": "Information",
+      "SensorPull.Services.GoveeClient": "Information"
+    },
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": false
+      }
     }
+  }
 }

@@ -1,11 +1,13 @@
-﻿using SensorPull.Models.Configuration;
+﻿using Microsoft.Extensions.Logging;
+using SensorPull.Models.Configuration;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace SensorPull.Services;
 
-public class SensorPushClient(IHttpClientFactory httpFactory, SensorPushSettings settings)
+public class SensorPushClient(ILogger<SensorPushClient> logger, IHttpClientFactory httpFactory, SensorPushSettings settings)
 {
+    private readonly ILogger _logger = logger;
     private readonly IHttpClientFactory _httpFactory = httpFactory;
     private readonly SensorPushSettings _settings = settings;
     private async Task<string> GetAccessTokenAsync()
@@ -13,12 +15,13 @@ public class SensorPushClient(IHttpClientFactory httpFactory, SensorPushSettings
         var http = _httpFactory.CreateClient();
 
         // Step 1: signin -> authorization code
+        _logger.LogInformation("Requesting SensorPush token");
         var authResp = await http.PostAsJsonAsync(
             $"{_settings.BaseUrl}/{_settings.AuthEndpoint}",
             new { email = settings.Email, password = _settings.Password }
         );
         authResp.EnsureSuccessStatusCode();
-
+        _logger.LogInformation("SensorPush token received");
         var authJson = await authResp.Content.ReadFromJsonAsync<JsonElement>();
         var authorization = authJson.GetProperty("authorization").GetString();
 
@@ -44,11 +47,12 @@ public class SensorPushClient(IHttpClientFactory httpFactory, SensorPushSettings
         http.DefaultRequestHeaders.Add("Authorization", accessToken);
 
         // Per docs: POST with empty body to list sensors
+        _logger.LogInformation("Retrieving SensorPush sensor thresholds for {SensorIdOrName}", sensorIdOrName);
         var resp = await http.PostAsJsonAsync(
             $"{_settings.BaseUrl}/devices/sensors",
             new { });
         resp.EnsureSuccessStatusCode();
-
+        _logger.LogInformation("SensorPush sensor thresholds retrieved for {SensorIdOrName}", sensorIdOrName);
         var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
 
         // Some accounts wrap sensors in { "sensors": { ... } }, yours is top-level keyed by sensorId
@@ -72,10 +76,12 @@ public class SensorPushClient(IHttpClientFactory httpFactory, SensorPushSettings
         http.DefaultRequestHeaders.Add("Authorization", accessToken);
 
         // List sensors
+        _logger.LogInformation("Resolving SensorPush sensor ID for {SensorIdOrName}", sensorIdOrName);
         var sensorsResp = await http.PostAsJsonAsync(
             $"{_settings.BaseUrl}/devices/sensors",
             new { }); // empty body per examples
         sensorsResp.EnsureSuccessStatusCode();
+        _logger.LogInformation("SensorPush sensors list retrieved for {SensorIdOrName}", sensorIdOrName);
         var sensorsJson = await sensorsResp.Content.ReadFromJsonAsync<JsonElement>();
 
         // Some accounts return { "sensors": { ... } }, others return { "<id>": { ... } }
@@ -117,11 +123,12 @@ public class SensorPushClient(IHttpClientFactory httpFactory, SensorPushSettings
 
         // Request the latest sample for that sensor
         var body = new { sensors = new[] { sensorId }, limit = 1 };
+        _logger.LogInformation("Retrieving latest temperature sample for SensorPush sensor {SensorIdOrName}", sensorIdOrName);
         var samplesResp = await http.PostAsJsonAsync($"{_settings.BaseUrl}/samples", body);
         samplesResp.EnsureSuccessStatusCode();
+        _logger.LogInformation("Latest temperature sample retrieved for SensorPush sensor {SensorIdOrName}", sensorIdOrName);
         var json = await samplesResp.Content.ReadFromJsonAsync<JsonElement>();
 
-        // { "sensors": { "<id>": [ { "observed": "...", "temperature": 73.67, ... } ] }, ... }
         var arr = json.GetProperty("sensors").GetProperty(sensorId);
         if (arr.GetArrayLength() == 0)
         {

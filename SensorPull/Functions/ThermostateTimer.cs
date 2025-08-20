@@ -38,6 +38,7 @@ public class ThermostatTimer(ILoggerFactory loggerFactory,
                 _log.LogWarning("HeatPad smart plug is offline; cannot change state.");
                 return;
             }
+            _log.LogInformation("HeatPad switch is currently {state}", heatPadState.IsOn ? "ON" : "OFF");
 
             bool? desiredOn = null;
 

@@ -1,12 +1,14 @@
-﻿using SensorPull.Models.Configuration;
+﻿using Microsoft.Extensions.Logging;
+using SensorPull.Models.Configuration;
 using SensorPull.Models.Govee;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace SensorPull.Services;
 
-public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
+public class GoveeClient(ILogger<GoveeClient> logger, IHttpClientFactory httpFactory, GoveeSettings settings)
 {
+    private readonly ILogger _logger = logger;
     private readonly IHttpClientFactory _httpFactory = httpFactory;
     private readonly GoveeSettings _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
@@ -19,8 +21,10 @@ public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
             throw new InvalidOperationException("BaseUrl is not set in GoveeSettings.");
         }
 
+        _logger.LogInformation("Retrieving Govee device list");
         var resp = await http.GetAsync($"{_settings.BaseUrl}/router/api/v1/user/devices");
         resp.EnsureSuccessStatusCode();
+        logger.LogInformation("SensorPush device list retrieved");
         var json = await resp.Content.ReadAsStringAsync();
         var response = JsonSerializer.Deserialize<Response>(json);
         return response ?? throw new InvalidOperationException("Failed to deserialize Govee response.");
@@ -35,6 +39,7 @@ public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
             throw new InvalidOperationException("BaseUrl is not set in GoveeSettings.");
         }
 
+        _logger.LogInformation("Retrieving Govee device state for {DeviceID}, SKU: {Sku}", deviceId, sku);
         var resp = await http.PostAsJsonAsync(
             $"{_settings.BaseUrl}/router/api/v1/device/state",
             new DeviceStateRequest
@@ -47,6 +52,7 @@ public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
                 }
             });
         resp.EnsureSuccessStatusCode();
+        _logger.LogInformation("Retrieved Govee device state for {DeviceID}, SKU: {Sku}", deviceId, sku);
         var json = await resp.Content.ReadAsStringAsync();
         var state = JsonSerializer.Deserialize<DeviceStateResponse>(json);
         if (state == null)
@@ -103,6 +109,7 @@ public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
             throw new InvalidOperationException("BaseUrl is not set in GoveeSettings.");
         }
 
+        _logger.LogInformation("Switching Govee switch to {NewState}", on ? "ON" : "OFF");
         var resp = await http.PostAsJsonAsync(
             $"{_settings.BaseUrl}/router/api/v1/device/control",
             new UpdateDeviceStatus
@@ -121,6 +128,7 @@ public class GoveeClient(IHttpClientFactory httpFactory, GoveeSettings settings)
                 }
             });
         resp.EnsureSuccessStatusCode();
+        _logger.LogInformation("Switched Govee switch to {NewState}", on ? "ON" : "OFF");
         var json = await resp.Content.ReadAsStringAsync();
         var response = JsonSerializer.Deserialize<ToggleSwitchResponse>(json);
         return response ?? throw new InvalidOperationException("Failed to deserialize Govee response.");
