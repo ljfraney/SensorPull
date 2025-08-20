@@ -21,6 +21,7 @@ public class ThermostatTimer(ILoggerFactory loggerFactory,
     [Function("ThermostatTimer")]
     public async Task Run([TimerTrigger("0 */2 * * * *")] TimerInfo myTimer)
     {
+        _log.LogWarning("######## ThermostatTimer started at {Now:o} ########", DateTimeOffset.UtcNow);
         try
         {
             var (minDegrees, maxDegrees) = await _sensorPushClient.GetTemperatureAlertThresholdsAsync(_sensorPushSettings.SensorIdOrName!);
